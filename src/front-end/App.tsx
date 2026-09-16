@@ -26,16 +26,18 @@ export default function App() {
         })
     }, [])
 
-   return (
+return (
     <div>
       <h1>Popular Movies</h1>
-        {movies ? (
-            <ul>
-            {movies.map((movie) => (
-                <MovieItem key={movie.id} movie={movie} />
-            ))}
-            </ul>
-        ) : null}
+      {movies ? (
+        <ul>
+          {movies.map((movie) => (
+            <MovieItem key={movie.id} movie={movie} />
+          ))}
+        </ul>
+      ) : (
+        <p>Loading...</p>
+      )}
     </div>
   )
 }
