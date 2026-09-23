@@ -1,5 +1,5 @@
 {
-    "compilerOptions": {
+  "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.backend.tsbuildinfo",
     "target": "ES2023",
     "lib": ["ES2023"],
@@ -20,6 +20,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
-    },
-    "include": ["src/back-end/**/*.ts"]
+  },
+  "include": ["src/back-end/**/*.ts"]
 }
