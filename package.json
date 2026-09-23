@@ -2,24 +2,28 @@
   "name": "themoviedb-discovery-app",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:client": "vite",
-    "dev:server": "tsx watch src/back-end/index.ts"
+  "keywords": [],
+  "homepage": "https://github.com/quentinchirol/themoviedb-discovery-app#readme",
+  "bugs": {
+    "url": "https://github.com/quentinchirol/themoviedb-discovery-app/issues"
   },
+  "license": "ISC",
+  "author": "",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/quentinchirol/themoviedb-discovery-app.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
-  "bugs": {
-    "url": "https://github.com/quentinchirol/themoviedb-discovery-app/issues"
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch src/back-end/index.ts",
+    "lint": "oxlint -c oxlint.config.ts .",
+    "lint:fix": "oxlint -c oxlint.config.ts --fix .",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
   },
-  "homepage": "https://github.com/quentinchirol/themoviedb-discovery-app#readme",
   "dependencies": {
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -37,8 +41,15 @@
     "concurrently": "^10.0.5",
     "devmoji": "^2.3.0",
     "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.3.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,html,md,yml,yaml}": "npm run fmt",
+    "*.{js,jsx,ts,tsx}": "npm run lint:fix"
   }
 }
