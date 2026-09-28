@@ -15,6 +15,9 @@ const port: number = 3000;
 app.get('/', (_req: express.Request, res: express.Response) => {
   res.send('Hello World from TypeScript!');
 });
+app.get('/api/health', (_req: express.Request, res: express.Response) => {
+  res.status(200).json({ status: 'ok' });
+});
 // Start the server and listen on the specified port
 app.listen(port, () => {
   console.log(`Example app in TypeScript listening on port ${port}`);
@@ -25,7 +28,7 @@ app.get(
   '/api/movies/popular',
   async (_req: express.Request, res: express.Response) => {
     try {
-        // Create a URLSearchParams object to build the query string for the TMDB API request
+      // Create a URLSearchParams object to build the query string for the TMDB API request
       const queryParams = new URLSearchParams();
 
       // Extract query parameters from the request and append them to the query string
