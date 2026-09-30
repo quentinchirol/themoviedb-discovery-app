@@ -117,6 +117,107 @@
   color: #4b5c7d;
 }
 
+.status-message--error {
+  color: #9b2c2c;
+}
+
+.back-link {
+  display: inline-flex;
+  margin-bottom: 20px;
+  color: #245f7d;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  text-decoration: underline;
+}
+
+.movie-detail__backdrop {
+  width: 100%;
+  max-height: 340px;
+  margin-bottom: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.movie-detail__body {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+}
+
+.movie-detail__poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #d8e0e6;
+}
+
+.movie-detail__content h1 {
+  margin: 0 0 12px;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.movie-detail__content h2 {
+  margin: 28px 0 8px;
+  font-size: 1.2rem;
+}
+
+.movie-detail__eyebrow {
+  margin: 0 0 10px;
+  color: #245f7d;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.movie-detail__tagline {
+  color: #455576;
+  font-size: 1.1rem;
+  font-style: italic;
+}
+
+.movie-detail__overview,
+.movie-detail__original-title {
+  line-height: 1.65;
+}
+
+.movie-detail__original-title {
+  color: #455576;
+}
+
+.movie-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 18px 0 0;
+  list-style: none;
+}
+
+.movie-genres li {
+  padding: 5px 9px;
+  border: 1px solid #9bb9c8;
+  border-radius: 6px;
+  color: #245f7d;
+  font-size: 0.9rem;
+}
+
+.not-found-page h1 {
+  margin: 0 0 12px;
+  font-size: 2.4rem;
+}
+
+.not-found-page > p:not(.movie-detail__eyebrow) {
+  margin-bottom: 24px;
+}
+
 /* Responsive */
 @media (max-width: 820px) {
   .movie-grid {
@@ -140,7 +241,7 @@
   }
 
   .movie-card {
-    border-radius: 10px;
+    border-radius: 8px;
   }
 
   .movie-card__content {
@@ -154,5 +255,33 @@
 
   .movie-card p {
     font-size: 0.8rem;
+  }
+
+  .movie-detail__backdrop {
+    max-height: 200px;
+    margin-bottom: 20px;
+  }
+
+  .movie-detail__body {
+    grid-template-columns: minmax(100px, 34%) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .movie-detail__content h1 {
+    font-size: 1.8rem;
+  }
+
+  .movie-detail__content h2 {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .movie-detail__body {
+    grid-template-columns: 1fr;
+  }
+
+  .movie-detail__poster {
+    width: min(65%, 220px);
   }
 }

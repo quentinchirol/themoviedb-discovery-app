@@ -20,7 +20,10 @@ export default function MovieItem({ movie }: MovieItemProps) {
           alt={`Affiche de ${movie.title}`}
         />
       ) : (
-        <div />
+        <div
+          className="movie-poster movie-poster--fallback"
+          aria-hidden="true"
+        />
       )}
       <div className="movie-card__content">
         <h2>{movie.title}</h2>
