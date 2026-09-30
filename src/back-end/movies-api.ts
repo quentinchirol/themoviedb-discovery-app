@@ -55,4 +55,33 @@ export function registerMoviesApi(app: Express): void {
       }
     },
   );
+
+  app.get(
+    '/api/movies/:id',
+    async (req: express.Request<{ id: string }>, res: express.Response) => {
+      try {
+        const language = (req.query.language as string) || DEFAULT_LANGUAGE;
+        const queryParams = new URLSearchParams({ language });
+        const response = await fetch(
+          `https://api.themoviedb.org/3/movie/${encodeURIComponent(req.params.id)}?${queryParams.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${tmdbAccessToken}`,
+              'Content-Type': 'application/json;charset=utf-8',
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `TMDB API request failed with status ${response.status}`,
+          );
+        }
+
+        res.json(await response.json());
+      } catch {
+        res.status(500).json({ error: 'Failed to fetch movie details' });
+      }
+    },
+  );
 }
