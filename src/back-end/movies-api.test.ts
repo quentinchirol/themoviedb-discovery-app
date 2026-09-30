@@ -1,5 +1,10 @@
 import type { Express, Request, Response } from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('./config', () => ({
+  tmdbAccessToken: 'test-access-token',
+}));
+
 import { registerMoviesApi } from './movies-api';
 import type { TmdbMoviesRawResponse } from './schemas/MoviesTypes';
 
@@ -14,7 +19,7 @@ describe('movies API', () => {
 
     registerMoviesApi(app);
 
-    expect(getMock).toHaveBeenCalledOnce();
+    expect(getMock).toHaveBeenCalledTimes(2);
     expect(getMock).toHaveBeenCalledWith(
       '/api/movies/popular',
       expect.any(Function),
@@ -118,5 +123,48 @@ describe('movies API', () => {
     expect(response.json).toHaveBeenCalledWith({
       error: 'Failed to fetch popular movies',
     });
+  });
+
+  it('registers GET /api/movies/:id and returns the requested movie details', async () => {
+    const getMock = vi.fn();
+    const app = { get: getMock } as unknown as Express;
+    registerMoviesApi(app);
+
+    expect(getMock).toHaveBeenCalledWith(
+      '/api/movies/:id',
+      expect.any(Function),
+    );
+
+    const handler = getMock.mock.calls[1]?.[1] as (
+      req: Request,
+      res: Response,
+    ) => Promise<void>;
+    const movieDetails = { id: 1273221, title: 'Movie details' };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(movieDetails),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = {
+      json: vi.fn(),
+      status: vi.fn(),
+    } as unknown as Response;
+    vi.mocked(response.status).mockReturnValue(response);
+
+    await handler(
+      {
+        params: { id: '1273221' },
+        query: { language: 'en-US' },
+      } as unknown as Request,
+      response,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.themoviedb.org/3/movie/1273221?language=en-US',
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
+    expect(response.json).toHaveBeenCalledWith(movieDetails);
+    expect(response.status).not.toHaveBeenCalled();
   });
 });
