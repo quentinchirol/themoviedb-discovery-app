@@ -10,6 +10,7 @@ import type {
   MoviesApiResponse,
 } from '../../back-end/schemas/MoviesTypes';
 import MovieItem from '../components/MovieItem';
+import './MoviesListPage.css';
 
 type MoviesResult =
   | { key: string; movies: Movie[] }
@@ -57,7 +58,7 @@ export default function MoviesListPage() {
 
   return (
     <main className="app-shell">
-      <header className="app-header">
+      <header className="movies-page-header">
         <h1>Films populaires</h1>
         <h2>
           Films à découvrir en France, d’après les données de{' '}

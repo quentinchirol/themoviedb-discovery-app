@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { DEFAULT_LANGUAGE } from '../../back-end/constants';
 import type { Movie } from '../../back-end/schemas/MoviesTypes';
+import './MovieDetailPage.css';
 
 type MovieDetails = Pick<
   Movie,
@@ -70,9 +71,10 @@ export default function MovieDetailPage() {
   const movie = !isLoading && result && 'movie' in result ? result.movie : null;
 
   return (
-    <main className="app-shell">
+    <main className="app-shell movie-detail-page">
+      <h1>Détails du film</h1>
       <Link className="back-link" to={`/movies?language=${language}`}>
-        ← Tous les films
+        ← Retour vers les films populaires
       </Link>
       {hasError ? (
         <p className="status-message status-message--error" role="alert">
@@ -80,55 +82,61 @@ export default function MovieDetailPage() {
           tard.
         </p>
       ) : movie ? (
-        <article className="movie-detail">
-          {movie.backdrop_path && (
-            <img
-              className="movie-detail__backdrop"
-              src={`https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`}
-              alt=""
-            />
-          )}
-          <div className="movie-detail__body">
+        <article className="movie-detail-card">
+          <figure className="movie-detail-hero-container">
             {movie.poster_path ? (
               <img
-                className="movie-detail__poster"
+                className="movie-detail-hero"
                 src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
                 alt={`Affiche de ${movie.title}`}
               />
             ) : (
               <div
-                className="movie-detail__poster movie-poster--fallback"
+                className="movie-detail-hero movie-detail-hero-placeholder"
                 role="img"
                 aria-label={`Affiche indisponible pour ${movie.title}`}
               />
             )}
-            <div className="movie-detail__content">
-              <p className="movie-detail__eyebrow">
-                {movie.release_date.slice(0, 4)}
-                {movie.runtime ? ` · ${movie.runtime} min` : ''}
-                {` · ${movie.vote_average.toFixed(1)}/10`}
-              </p>
-              <h1>{movie.title}</h1>
-              {movie.tagline && (
-                <p className="movie-detail__tagline">{movie.tagline}</p>
+          </figure>
+          <div className="movie-detail-copy">
+            <p className="movie-detail-kicker">Détails du film</p>
+            <h1>{movie.title}</h1>
+            {movie.tagline && (
+              <p className="movie-detail-tagline">{movie.tagline}</p>
+            )}
+            <dl className="movie-detail-meta">
+              <div>
+                <dt>Sortie</dt>
+                <dd>{movie.release_date || 'Non renseignée'}</dd>
+              </div>
+              {movie.runtime !== null && (
+                <div>
+                  <dt>Durée</dt>
+                  <dd>{movie.runtime} min</dd>
+                </div>
               )}
-              {movie.genres.length > 0 && (
-                <ul className="movie-genres" aria-label="Genres">
-                  {movie.genres.map((genre) => (
-                    <li key={genre.id}>{genre.name}</li>
-                  ))}
-                </ul>
-              )}
+              <div>
+                <dt>Note</dt>
+                <dd>{movie.vote_average.toFixed(1)}/10</dd>
+              </div>
+            </dl>
+            {movie.genres.length > 0 && (
+              <ul className="movie-detail-genres" aria-label="Genres">
+                {movie.genres.map((genre) => (
+                  <li key={genre.id}>{genre.name}</li>
+                ))}
+              </ul>
+            )}
+            <section className="movie-detail-section">
               <h2>Synopsis</h2>
-              <p className="movie-detail__overview">
-                {movie.overview || 'Aucun synopsis disponible.'}
-              </p>
-              {movie.original_title !== movie.title && (
-                <p className="movie-detail__original-title">
-                  Titre original : {movie.original_title}
-                </p>
-              )}
-            </div>
+              <p>{movie.overview || 'Aucun synopsis disponible.'}</p>
+            </section>
+            {movie.original_title !== movie.title && (
+              <section className="movie-detail-section">
+                <h2>Titre original</h2>
+                <p>{movie.original_title}</p>
+              </section>
+            )}
           </div>
         </article>
       ) : (
