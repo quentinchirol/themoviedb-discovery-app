@@ -1,0 +1,16 @@
+.not-found-page__eyebrow {
+  margin: 0 0 10px;
+  color: #245f7d;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.not-found-page h1 {
+  margin: 0 0 12px;
+  font-size: 2.4rem;
+}
+
+.not-found-page > p:not(.not-found-page__eyebrow) {
+  margin-bottom: 24px;
+}
