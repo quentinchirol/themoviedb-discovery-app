@@ -1,5 +1,10 @@
 import type { Express, Request, Response } from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('./config', () => ({
+  tmdbAccessToken: 'test-access-token',
+}));
+
 import { registerMoviesApi } from './movies-api';
 import type { TmdbMoviesRawResponse } from './schemas/MoviesTypes';
 
