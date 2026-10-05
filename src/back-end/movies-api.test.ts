@@ -99,6 +99,47 @@ describe('movies API', () => {
     expect(response.status).not.toHaveBeenCalled();
   });
 
+  it('uses default pagination and regional parameters when query string is missing', async () => {
+    const getMock = vi.fn();
+    const app = { get: getMock } as unknown as Express;
+    registerMoviesApi(app);
+
+    const handler = getMock.mock.calls[0]?.[1] as (
+      req: Request,
+      res: Response,
+    ) => Promise<void>;
+    const rawData: TmdbMoviesRawResponse = {
+      page: 1,
+      results: [],
+      total_pages: 1,
+      total_results: 0,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(rawData),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = {
+      json: vi.fn(),
+      status: vi.fn(),
+    } as unknown as Response;
+    vi.mocked(response.status).mockReturnValue(response);
+
+    await handler({ query: {} } as Request, response);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.themoviedb.org/3/movie/popular?language=fr-FR&page=1&region=FR',
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
+    expect(response.json).toHaveBeenCalledWith({
+      page: 1,
+      results: [],
+      total_pages: 1,
+      total_results: 0,
+    });
+  });
+
   it('returns a 500 response when TMDB returns an error', async () => {
     const getMock = vi.fn();
     const app = { get: getMock } as unknown as Express;
@@ -166,5 +207,74 @@ describe('movies API', () => {
     );
     expect(response.json).toHaveBeenCalledWith(movieDetails);
     expect(response.status).not.toHaveBeenCalled();
+  });
+
+  it('uses the default language when the movie detail query is missing', async () => {
+    const getMock = vi.fn();
+    const app = { get: getMock } as unknown as Express;
+    registerMoviesApi(app);
+
+    const handler = getMock.mock.calls[1]?.[1] as (
+      req: Request,
+      res: Response,
+    ) => Promise<void>;
+    const movieDetails = { id: 42, title: 'Default language movie' };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(movieDetails),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = {
+      json: vi.fn(),
+      status: vi.fn(),
+    } as unknown as Response;
+    vi.mocked(response.status).mockReturnValue(response);
+
+    await handler(
+      {
+        params: { id: '42' },
+        query: {},
+      } as unknown as Request,
+      response,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.themoviedb.org/3/movie/42?language=fr-FR',
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
+    expect(response.json).toHaveBeenCalledWith(movieDetails);
+  });
+
+  it('returns a 500 response when movie details request fails', async () => {
+    const getMock = vi.fn();
+    const app = { get: getMock } as unknown as Express;
+    registerMoviesApi(app);
+
+    const handler = getMock.mock.calls[1]?.[1] as (
+      req: Request,
+      res: Response,
+    ) => Promise<void>;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = {
+      json: vi.fn(),
+      status: vi.fn(),
+    } as unknown as Response;
+    vi.mocked(response.status).mockReturnValue(response);
+
+    await handler(
+      {
+        params: { id: 'missing-id' },
+        query: { language: 'fr-FR' },
+      } as unknown as Request,
+      response,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(500);
+    expect(response.json).toHaveBeenCalledWith({
+      error: 'Failed to fetch movie details',
+    });
   });
 });
