@@ -1,64 +1,46 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-// Mock the necessary modules and functions
-const { getMock, listenMock } = vi.hoisted(() => ({
-  getMock: vi.fn(),
-  listenMock: vi.fn(),
-}));
-
-vi.mock('express', () => ({
-  default: vi.fn(() => ({
-    get: getMock,
-    listen: listenMock,
-  })),
-}));
-
-vi.mock('./config', () => ({
-  tmdbAccessToken: 'test-access-token',
-}));
-
-// Import the code under test after setting up the mocks
-import './index';
-
-// Define types for the request and response objects used in the route handlers
-type RouteHandler = (req: Request, res: Response) => void | Promise<void>;
-
-// Create a map of route handlers for easy access in tests
-const routeHandlers = new Map<string, RouteHandler>(
-  getMock.mock.calls.map(([path, handler]) => [
-    path as string,
-    handler as RouteHandler,
-  ]),
-);
-
-// Check if the server was started on the expected port
-const serverWasStarted = listenMock.mock.calls.some(([port]) => port === 3000);
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('back-end server routes', () => {
-  // Clear mocks before each test to ensure isolation
-  beforeEach(() => {
+  afterEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
   });
 
-  describe('server setup', () => {
-    describe('server listening', () => {
-      it('starts the server on port 3000', () => {
-        expect(serverWasStarted).toBe(true);
-      });
-    });
-  });
+  it('starts the server on port 3000 and registers routes', async () => {
+    const getMock = vi.fn();
+    const listenMock = vi.fn();
+    const registerHealthApiMock = vi.fn();
+    const registerMoviesApiMock = vi.fn();
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-  describe('route registration', () => {
-    it('registers the /api/movies/popular route', () => {
-      expect(routeHandlers.has('/api/movies/popular')).toBe(true);
-    });
+    vi.doMock('express', () => ({
+      default: vi.fn(() => ({
+        get: getMock,
+        listen: listenMock,
+      })),
+    }));
+    vi.doMock('./health-api', () => ({
+      registerHealthApi: registerHealthApiMock,
+    }));
+    vi.doMock('./movies-api', () => ({
+      registerMoviesApi: registerMoviesApiMock,
+    }));
 
-    it('registers the /api/movies/:id route', () => {
-      expect(routeHandlers.has('/api/movies/:id')).toBe(true);
-    });
+    await import('./index');
 
-    it('registers the /api/health route', () => {
-      expect(routeHandlers.has('/api/health')).toBe(true);
-    });
+    expect(registerHealthApiMock).toHaveBeenCalledWith(
+      expect.objectContaining({ get: getMock, listen: listenMock }),
+    );
+    expect(registerMoviesApiMock).toHaveBeenCalledWith(
+      expect.objectContaining({ get: getMock, listen: listenMock }),
+    );
+    expect(listenMock).toHaveBeenCalledWith(3000, expect.any(Function));
+
+    const listenCallback = listenMock.mock.calls[0]?.[1];
+    listenCallback();
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      'Example app in TypeScript listening on port 3000',
+    );
   });
 });
