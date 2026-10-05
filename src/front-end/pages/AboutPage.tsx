@@ -27,8 +27,8 @@ export default function AboutPage() {
           <p className="about-hero__brand">TMDB DISCOVERY</p>
           <h1>À propos de l'application</h1>
           <p className="about-hero__subtitle">
-            Une application de découverte de films, pensée comme une
-            expérience web claire, rapide et maintenable.
+            Une application de découverte de films, pensée comme une expérience
+            web claire, rapide et maintenable.
           </p>
         </header>
 
