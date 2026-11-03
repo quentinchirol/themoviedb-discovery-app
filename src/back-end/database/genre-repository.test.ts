@@ -4,6 +4,7 @@ import { createDatabaseSchema } from './schema';
 import {
   findGenreById,
   listGenres,
+  cleanUnusedGenres,
   upsertGenres,
   type Genre,
 } from './genre-repository';
@@ -126,5 +127,41 @@ describe('genre repository', () => {
       upsertGenres(db, [{ id: 12, name: 'Aventure' }, invalidGenre]),
     ).toThrow();
     expect(listGenres(db)).toEqual([]);
+  });
+
+  it('removes only genres not associated with a movie and returns the count', () => {
+    const db = createTestDatabase();
+    upsertGenres(db, [
+      { id: 12, name: 'Aventure' },
+      { id: 18, name: 'Drame' },
+      { id: 35, name: 'Comédie' },
+    ]);
+    db.prepare(
+      `INSERT INTO movies (
+        tmdb_id, title, original_title, first_imported_at, observed_at
+      ) VALUES (101, 'Film', 'Movie', '2024-01-01', '2024-01-01')`,
+    ).run();
+    db.prepare(
+      'INSERT INTO movie_genres (movie_id, genre_id) VALUES (101, 18)',
+    ).run();
+
+    expect(cleanUnusedGenres(db)).toBe(2);
+    expect(listGenres(db)).toEqual([{ id: 18, name: 'Drame' }]);
+    expect(cleanUnusedGenres(db)).toBe(0);
+  });
+
+  it('rolls back genre cleanup when SQLite rejects a deletion', () => {
+    const db = createTestDatabase();
+    upsertGenres(db, [{ id: 18, name: 'Drame' }]);
+    db.exec(`
+      CREATE TRIGGER reject_genre_delete
+      BEFORE DELETE ON genres
+      BEGIN
+        SELECT RAISE(ABORT, 'delete rejected');
+      END;
+    `);
+
+    expect(() => cleanUnusedGenres(db)).toThrow('delete rejected');
+    expect(listGenres(db)).toEqual([{ id: 18, name: 'Drame' }]);
   });
 });

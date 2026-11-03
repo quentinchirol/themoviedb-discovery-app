@@ -61,3 +61,23 @@ export function upsertGenres(
     throw error;
   }
 }
+
+export function cleanUnusedGenres(database: DatabaseSync): number {
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    const result = database
+      .prepare(
+        `DELETE FROM genres
+         WHERE NOT EXISTS (
+           SELECT 1 FROM movie_genres WHERE movie_genres.genre_id = genres.tmdb_id
+         )`,
+      )
+      .run();
+
+    database.exec('COMMIT');
+    return Number(result.changes);
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+}
