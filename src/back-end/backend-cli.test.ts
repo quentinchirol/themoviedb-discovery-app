@@ -14,6 +14,9 @@ import {
 import { listGenres, upsertGenres } from './database/genre-repository.ts';
 
 const cliPath = fileURLToPath(new URL('./backend-cli.ts', import.meta.url));
+const sampleGenresCsvPath = fileURLToPath(
+  new URL('../../data/genres.csv', import.meta.url),
+);
 let temporaryDirectory = '';
 let originalWorkingDirectory = '';
 
@@ -56,6 +59,21 @@ function expectSQLiteDatabase(path: string): void {
 }
 
 describe('backend CLI', () => {
+  it('imports all genres from the example CSV file', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+
+    expect(
+      addGenresFromCsv(sampleGenresCsvPath, databasePath).importedCount,
+    ).toBe(19);
+    const database = new DatabaseSync(databasePath);
+    try {
+      expect(listGenres(database)).toHaveLength(19);
+    } finally {
+      database.close();
+    }
+  });
+
   it('imports genres into the default database and reports the count and path', () => {
     temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
     originalWorkingDirectory = process.cwd();
