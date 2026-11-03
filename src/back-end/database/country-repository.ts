@@ -9,6 +9,10 @@ function toCountry(
   row: Record<string, unknown> | undefined,
 ): Country | undefined {
   if (!row) return undefined;
+  return toCountryRow(row);
+}
+
+function toCountryRow(row: Record<string, unknown>): Country {
   if (typeof row.iso_3166_1 !== 'string' || typeof row.name !== 'string') {
     throw new Error('Invalid country row returned by SQLite');
   }
@@ -31,11 +35,7 @@ export function listCountries(database: DatabaseSync): Country[] {
   return database
     .prepare('SELECT iso_3166_1, name FROM countries ORDER BY iso_3166_1 ASC')
     .all()
-    .map((row) => {
-      const country = toCountry(row);
-      if (!country) throw new Error('SQLite returned an empty country row');
-      return country;
-    });
+    .map(toCountryRow);
 }
 
 export function upsertCountries(
