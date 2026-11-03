@@ -33,12 +33,10 @@ describe('parseGenresCsv', () => {
     );
   });
 
-  it('rejects malformed rows and CSV syntax', () => {
-    expect(() => parseGenresCsv('id,name\n1')).toThrow(
-      'Invalid genres CSV syntax',
-    );
+  it('rejects rows with the wrong number of columns and malformed CSV syntax', () => {
+    expect(() => parseGenresCsv('id,name\n1')).toThrow('expected 2 columns');
     expect(() => parseGenresCsv('id,name\n1,Drama,extra')).toThrow(
-      'Invalid genres CSV syntax',
+      'expected 2 columns',
     );
     expect(() => parseGenresCsv('id,name\n1,"unterminated')).toThrow(
       'Invalid genres CSV syntax',

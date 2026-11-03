@@ -13,13 +13,12 @@ export function parseGenresCsv(contents: string): Genre[] {
     records = parse(contents, {
       bom: true,
       skip_empty_lines: true,
-      relax_column_count: false,
+      relax_column_count: true,
     });
   } catch (error) {
-    throw new Error(
-      `Invalid genres CSV syntax: ${error instanceof Error ? error.message : String(error)}`,
-      { cause: error },
-    );
+    throw new Error(`Invalid genres CSV syntax: ${String(error)}`, {
+      cause: error,
+    });
   }
 
   if (!Array.isArray(records) || records.length === 0) {
