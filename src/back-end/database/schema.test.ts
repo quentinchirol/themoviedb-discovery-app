@@ -64,6 +64,7 @@ describe('SQLite movie dashboard schema', () => {
           )
           .get(),
       ).toEqual({ name: 'movies' });
+      expect(() => createDatabaseSchema(database)).not.toThrow();
     } finally {
       database.close();
     }

@@ -7,6 +7,10 @@ export type Genre = {
 
 function toGenre(row: Record<string, unknown> | undefined): Genre | undefined {
   if (!row) return undefined;
+  return toGenreRow(row);
+}
+
+function toGenreRow(row: Record<string, unknown>): Genre {
   if (typeof row.tmdb_id !== 'number' || typeof row.name !== 'string') {
     throw new Error('Invalid genre row returned by SQLite');
   }
@@ -29,11 +33,7 @@ export function listGenres(database: DatabaseSync): Genre[] {
   return database
     .prepare('SELECT tmdb_id, name FROM genres ORDER BY tmdb_id ASC')
     .all()
-    .map((row) => {
-      const genre = toGenre(row);
-      if (!genre) throw new Error('SQLite returned an empty genre row');
-      return genre;
-    });
+    .map(toGenreRow);
 }
 
 export function upsertGenres(
