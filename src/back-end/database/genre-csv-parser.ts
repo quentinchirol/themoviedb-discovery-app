@@ -50,14 +50,14 @@ export function parseGenresCsv(contents: string): Genre[] {
 
     const rawId = row[idIndex];
     const rawName = row[nameIndex];
-    if (!/^[1-9]\d*$/.test(rawId)) {
+    if (!/^\d+$/.test(rawId)) {
       throw new Error(
         `Invalid genre id on CSV row ${index + 2}: expected a positive safe integer.`,
       );
     }
 
     const id = Number(rawId);
-    if (!Number.isSafeInteger(id)) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       throw new Error(
         `Invalid genre id on CSV row ${index + 2}: expected a positive safe integer.`,
       );

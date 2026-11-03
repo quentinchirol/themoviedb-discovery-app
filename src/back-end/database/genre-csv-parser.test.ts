@@ -11,6 +11,12 @@ describe('parseGenresCsv', () => {
     ]);
   });
 
+  it('accepts positive integer identifiers with leading zeroes', () => {
+    expect(parseGenresCsv('id,name\n0018,Drama')).toEqual([
+      { id: 18, name: 'Drama' },
+    ]);
+  });
+
   it('supports BOM, CRLF, quoted commas, escaped quotes, and empty lines', () => {
     const csv = '\uFEFFid,name\r\n\r\n16,"Sci-fi, ""Space"""\r\n';
 
