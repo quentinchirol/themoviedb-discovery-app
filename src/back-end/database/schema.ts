@@ -21,12 +21,18 @@ export type MovieForStorage = {
   productionCountries: Array<{ code: string; name: string }>;
 };
 
-export const databaseSchema = `
-  CREATE TABLE IF NOT EXISTS movies (
+function moviesTableSql(tableName: string): string {
+  return `CREATE TABLE ${tableName} (
     tmdb_id INTEGER PRIMARY KEY CHECK (tmdb_id > 0),
     title TEXT NOT NULL,
     original_title TEXT NOT NULL,
     release_date TEXT,
+    release_year INTEGER GENERATED ALWAYS AS (
+      CASE
+        WHEN release_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+        THEN CAST(substr(release_date, 1, 4) AS INTEGER)
+      END
+    ) STORED,
     overview TEXT,
     original_language TEXT,
     poster_path TEXT,
@@ -41,8 +47,10 @@ export const databaseSchema = `
     revenue INTEGER CHECK (revenue IS NULL OR revenue > 0),
     first_imported_at TEXT NOT NULL,
     observed_at TEXT NOT NULL
-  );
+  )`;
+}
 
+export const databaseSchema = `
   CREATE TABLE IF NOT EXISTS genres (
     tmdb_id INTEGER PRIMARY KEY CHECK (tmdb_id > 0),
     name TEXT NOT NULL
@@ -72,8 +80,57 @@ export const databaseSchema = `
 `;
 
 export function createDatabaseSchema(database: DatabaseSync): void {
-  database.exec('PRAGMA foreign_keys = ON');
-  database.exec(databaseSchema);
+  database.exec('PRAGMA foreign_keys = OFF');
+
+  try {
+    database.exec('BEGIN IMMEDIATE');
+
+    try {
+      const moviesTable = database
+        .prepare(
+          "SELECT 1 AS movie_table_exists FROM sqlite_master WHERE type = 'table' AND name = 'movies'",
+        )
+        .get();
+
+      if (!moviesTable) {
+        database.exec(moviesTableSql('movies'));
+      } else {
+        const columns = database.prepare('PRAGMA table_xinfo(movies)').all();
+        const hasReleaseYear = columns.some(
+          (column) => column.name === 'release_year',
+        );
+
+        if (!hasReleaseYear) {
+          database.exec(moviesTableSql('movies__migration'));
+          database.exec(`
+            INSERT INTO movies__migration (
+              tmdb_id, title, original_title, release_date, overview,
+              original_language, poster_path, backdrop_path, popularity,
+              vote_average, vote_count, runtime, budget, revenue,
+              first_imported_at, observed_at
+            )
+            SELECT
+              tmdb_id, title, original_title, release_date, overview,
+              original_language, poster_path, backdrop_path, popularity,
+              vote_average, vote_count, runtime, budget, revenue,
+              first_imported_at, observed_at
+            FROM movies;
+            DROP TABLE movies;
+            ALTER TABLE movies__migration RENAME TO movies;
+          `);
+        }
+      }
+
+      database.exec(databaseSchema);
+      database.exec('PRAGMA user_version = 1');
+      database.exec('COMMIT');
+    } catch (error) {
+      database.exec('ROLLBACK');
+      throw error;
+    }
+  } finally {
+    database.exec('PRAGMA foreign_keys = ON');
+  }
 }
 
 export function openMoviesDatabase(path: string): DatabaseSync {

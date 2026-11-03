@@ -1,5 +1,4 @@
-import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Command } from 'commander';
 import { openMoviesDatabase } from './database/schema.ts';
@@ -8,8 +7,6 @@ const defaultDatabasePath = 'data/database.sqlite';
 
 export function initializeDatabase(path: string): string {
   const databasePath = resolve(path);
-  mkdirSync(dirname(databasePath), { recursive: true });
-
   const database = openMoviesDatabase(databasePath);
   database.close();
 

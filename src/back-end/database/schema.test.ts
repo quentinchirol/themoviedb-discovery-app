@@ -83,6 +83,143 @@ describe('SQLite movie dashboard schema', () => {
     }
   });
 
+  it('stores the release year derived from the release date and updates it with the date', () => {
+    const database = createTestDatabase();
+    try {
+      upsertMovie(database, movie, '2024-01-01T00:00:00.000Z');
+
+      expect(
+        database
+          .prepare(
+            'SELECT release_date, release_year FROM movies WHERE tmdb_id = 101',
+          )
+          .get(),
+      ).toEqual({ release_date: '2020-06-15', release_year: 2020 });
+      expect(
+        database
+          .prepare("PRAGMA table_xinfo('movies')")
+          .all()
+          .find((column) => column.name === 'release_year')?.hidden,
+      ).toBe(3);
+
+      upsertMovie(
+        database,
+        { ...movie, releaseDate: '2024-01-01' },
+        '2025-01-01T00:00:00.000Z',
+      );
+      expect(
+        database
+          .prepare('SELECT release_year FROM movies WHERE tmdb_id = 101')
+          .get()?.release_year,
+      ).toBe(2024);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('migrates an existing database while preserving its movies and relationships', () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      database.exec(`
+        PRAGMA foreign_keys = ON;
+        CREATE TABLE movies (
+          tmdb_id INTEGER PRIMARY KEY,
+          title TEXT NOT NULL,
+          original_title TEXT NOT NULL,
+          release_date TEXT,
+          overview TEXT,
+          original_language TEXT,
+          poster_path TEXT,
+          backdrop_path TEXT,
+          popularity REAL,
+          vote_average REAL,
+          vote_count INTEGER,
+          runtime INTEGER,
+          budget INTEGER,
+          revenue INTEGER,
+          first_imported_at TEXT NOT NULL,
+          observed_at TEXT NOT NULL
+        );
+        CREATE TABLE genres (tmdb_id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+        CREATE TABLE countries (
+          iso_3166_1 TEXT PRIMARY KEY,
+          name TEXT NOT NULL
+        );
+        CREATE TABLE movie_genres (
+          movie_id INTEGER NOT NULL REFERENCES movies(tmdb_id) ON DELETE CASCADE,
+          genre_id INTEGER NOT NULL REFERENCES genres(tmdb_id) ON DELETE RESTRICT,
+          PRIMARY KEY (movie_id, genre_id)
+        );
+        CREATE TABLE movie_production_countries (
+          movie_id INTEGER NOT NULL REFERENCES movies(tmdb_id) ON DELETE CASCADE,
+          country_code TEXT NOT NULL REFERENCES countries(iso_3166_1) ON DELETE RESTRICT,
+          PRIMARY KEY (movie_id, country_code)
+        );
+        INSERT INTO movies (
+          tmdb_id, title, original_title, release_date, first_imported_at,
+          observed_at
+        ) VALUES (101, 'Film existant', 'Existing movie', '2020-06-15', '2024-01-01', '2024-01-01');
+        INSERT INTO genres VALUES (18, 'Drame');
+        INSERT INTO countries VALUES ('FR', 'France');
+        INSERT INTO movie_genres VALUES (101, 18);
+        INSERT INTO movie_production_countries VALUES (101, 'FR');
+      `);
+
+      createDatabaseSchema(database);
+
+      expect(
+        database
+          .prepare('SELECT title, release_year FROM movies WHERE tmdb_id = 101')
+          .get(),
+      ).toEqual({ title: 'Film existant', release_year: 2020 });
+      expect(
+        database
+          .prepare('SELECT genre_id FROM movie_genres WHERE movie_id = 101')
+          .all(),
+      ).toEqual([{ genre_id: 18 }]);
+      expect(
+        database
+          .prepare(
+            'SELECT country_code FROM movie_production_countries WHERE movie_id = 101',
+          )
+          .all(),
+      ).toEqual([{ country_code: 'FR' }]);
+      expect(database.prepare('PRAGMA foreign_keys').get()?.foreign_keys).toBe(
+        1,
+      );
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('rolls back and propagates an initialization error', () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      database.exec(`
+        CREATE TABLE movies (tmdb_id INTEGER PRIMARY KEY, title TEXT NOT NULL);
+        INSERT INTO movies VALUES (101, 'Existing movie');
+      `);
+
+      expect(() => createDatabaseSchema(database)).toThrow();
+      expect(
+        database
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+          )
+          .all(),
+      ).toEqual([{ name: 'movies' }]);
+      expect(database.prepare('SELECT * FROM movies').all()).toEqual([
+        { tmdb_id: 101, title: 'Existing movie' },
+      ]);
+      expect(database.prepare('PRAGMA foreign_keys').get()?.foreign_keys).toBe(
+        1,
+      );
+    } finally {
+      database.close();
+    }
+  });
+
   it('upserts a movie and its relationships atomically without deleting other films', () => {
     const database = createTestDatabase();
     try {
