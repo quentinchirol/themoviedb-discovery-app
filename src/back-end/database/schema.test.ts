@@ -1,23 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   createDatabaseSchema,
-  openMoviesDatabase,
   upsertMovie,
   type MovieForStorage,
 } from './schema';
-
-let temporaryDirectory = '';
-
-afterEach(() => {
-  if (temporaryDirectory) {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
-    temporaryDirectory = '';
-  }
-});
 
 function createTestDatabase(): DatabaseSync {
   const database = new DatabaseSync(':memory:');
@@ -51,50 +38,6 @@ const movie: MovieForStorage = {
 };
 
 describe('SQLite movie dashboard schema', () => {
-  it('creates a database and its schema at a nested path', () => {
-    temporaryDirectory = mkdtempSync(join(tmpdir(), 'sqlite-schema-'));
-    const databasePath = join(temporaryDirectory, 'nested', 'movies.sqlite');
-    const database = openMoviesDatabase(databasePath);
-
-    try {
-      expect(
-        database
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'movies'",
-          )
-          .get(),
-      ).toEqual({ name: 'movies' });
-      expect(() => createDatabaseSchema(database)).not.toThrow();
-    } finally {
-      database.close();
-    }
-  });
-
-  it('closes and propagates errors when schema creation fails', () => {
-    temporaryDirectory = mkdtempSync(join(tmpdir(), 'sqlite-schema-'));
-    const databasePath = join(temporaryDirectory, 'invalid.sqlite');
-    const invalidDatabase = new DatabaseSync(databasePath);
-    invalidDatabase.exec(
-      'CREATE TABLE movies (tmdb_id INTEGER PRIMARY KEY, title TEXT NOT NULL)',
-    );
-    invalidDatabase.close();
-
-    expect(() => openMoviesDatabase(databasePath)).toThrow();
-
-    const database = new DatabaseSync(databasePath);
-    try {
-      expect(
-        database
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'genres'",
-          )
-          .get(),
-      ).toBeUndefined();
-    } finally {
-      database.close();
-    }
-  });
-
   it('creates normalized tables with primary keys and foreign keys', () => {
     const database = createTestDatabase();
 

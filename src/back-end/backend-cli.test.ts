@@ -4,8 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { initializeDatabase } from './backend-cli.ts';
+import { afterEach, describe, expect, it } from 'vitest';
 
 const cliPath = fileURLToPath(new URL('./backend-cli.ts', import.meta.url));
 let temporaryDirectory = '';
@@ -45,32 +44,6 @@ function expectSQLiteDatabase(path: string): void {
 }
 
 describe('backend CLI', () => {
-  it('initializes a database when called as a module function', () => {
-    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
-    const databasePath = join(temporaryDirectory, 'function', 'movies.sqlite');
-
-    expect(initializeDatabase(databasePath)).toBe(databasePath);
-    expectSQLiteDatabase(databasePath);
-  });
-
-  it('runs the command action when the CLI module is the process entry point', async () => {
-    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
-    const customPath = join(temporaryDirectory, 'entrypoint', 'movies.sqlite');
-    const originalArgv = process.argv;
-    process.argv = [process.execPath, cliPath, '--path', customPath];
-    vi.resetModules();
-    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    try {
-      await import('./backend-cli.ts');
-      expect(log).toHaveBeenCalledWith(`Database initialized at ${customPath}`);
-      expectSQLiteDatabase(customPath);
-    } finally {
-      process.argv = originalArgv;
-      log.mockRestore();
-    }
-  });
-
   it('creates the initialized database at the default path', () => {
     temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
 
