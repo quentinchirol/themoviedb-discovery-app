@@ -21,8 +21,23 @@ function expectSQLiteDatabase(path: string): void {
 
   try {
     const result = database.prepare('SELECT sqlite_version() AS version').get();
+    const tables = database
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+      )
+      .all()
+      .map((row) => row.name);
 
     expect(result?.version).toBeTypeOf('string');
+    expect(tables).toEqual(
+      expect.arrayContaining([
+        'movies',
+        'genres',
+        'countries',
+        'movie_genres',
+        'movie_production_countries',
+      ]),
+    );
   } finally {
     database.close();
   }
