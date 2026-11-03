@@ -21,6 +21,23 @@ function createTestDatabase(): DatabaseSync {
 }
 
 describe('genre repository', () => {
+  it('rejects rows that do not match the Genre type', () => {
+    const db = new DatabaseSync(':memory:');
+    try {
+      db.exec(`
+        CREATE TABLE genres (tmdb_id, name);
+        INSERT INTO genres VALUES ('invalid-id', 123);
+      `);
+      createDatabaseSchema(db);
+
+      expect(() => listGenres(db)).toThrow(
+        'Invalid genre row returned by SQLite',
+      );
+    } finally {
+      db.close();
+    }
+  });
+
   it('finds an existing genre and returns undefined for a missing genre', () => {
     const db = createTestDatabase();
     upsertGenres(db, [{ id: 18, name: 'Drame' }]);
