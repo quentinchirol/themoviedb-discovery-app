@@ -63,3 +63,18 @@ export function upsertCountries(
     throw error;
   }
 }
+
+export function cleanUnusedCountries(database: DatabaseSync): number {
+  const result = database
+    .prepare(
+      `DELETE FROM countries
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM movie_production_countries
+         WHERE movie_production_countries.country_code = countries.iso_3166_1
+       )`,
+    )
+    .run();
+
+  return Number(result.changes);
+}

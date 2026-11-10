@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createDatabaseSchema } from './schema';
 import {
+  cleanUnusedCountries,
   findCountryByCode,
   listCountries,
   upsertCountries,
@@ -143,5 +144,24 @@ describe('country repository', () => {
       ]),
     ).toThrow();
     expect(listCountries(db)).toEqual([]);
+  });
+
+  it('removes only countries that have no movie production association', () => {
+    const db = createTestDatabase();
+    upsertCountries(db, [
+      { code: 'FR', name: 'France' },
+      { code: 'BE', name: 'Belgium' },
+    ]);
+    db.prepare(
+      `INSERT INTO movies (
+        tmdb_id, title, original_title, first_imported_at, observed_at
+      ) VALUES (1, 'Film', 'Film', 'now', 'now')`,
+    ).run();
+    db.prepare(
+      'INSERT INTO movie_production_countries (movie_id, country_code) VALUES (1, ?)',
+    ).run('FR');
+
+    expect(cleanUnusedCountries(db)).toBe(1);
+    expect(listCountries(db)).toEqual([{ code: 'FR', name: 'France' }]);
   });
 });

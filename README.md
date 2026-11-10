@@ -58,7 +58,23 @@ Pour choisir un autre fichier SQLite :
 node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite
 ```
 
-La commande crée les dossiers manquants et le fichier SQLite sans créer de table applicative. Le test `src/back-end/database/schema.test.ts` vérifie que SQLite peut ouvrir la base et exécuter une requête.
+La commande crée les dossiers manquants, le fichier SQLite et son schéma.
+
+Importez ou actualisez les pays depuis un CSV avec exactement les colonnes `code` et `name` :
+
+```sh
+node src/back-end/backend-cli.ts add-countries ./data/countries.csv
+node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite add-countries ./data/countries.csv
+```
+
+Supprimez uniquement les pays qui ne sont associés à aucun film :
+
+```sh
+node src/back-end/backend-cli.ts clean-countries
+node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite clean-countries
+```
+
+Un fichier CSV d'exemple est disponible dans [data/countries.csv](./data/countries.csv).
 
 ## API locale
 

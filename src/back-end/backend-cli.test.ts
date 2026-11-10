@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,5 +97,140 @@ describe('backend CLI', () => {
 
     expect(output).toContain(`Database initialized at ${customPath}`);
     expectSQLiteDatabase(customPath);
+  });
+
+  it('imports countries from a CSV into the selected database and reports the count', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'countries.csv');
+    const databasePath = join(temporaryDirectory, 'custom', 'movies.sqlite');
+    writeFileSync(
+      csvPath,
+      'code,name\nFR,French Republic\nUS,United States\nFR,France\n',
+    );
+
+    const output = execFileSync(
+      process.execPath,
+      [cliPath, '--path', databasePath, 'add-countries', csvPath],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    writeFileSync(csvPath, 'code,name\nFR,Updated France\n');
+    const updateOutput = execFileSync(
+      process.execPath,
+      [cliPath, '--path', databasePath, 'add-countries', csvPath],
+      { encoding: 'utf8' },
+    );
+    const database = new DatabaseSync(databasePath);
+
+    try {
+      expect(output).toContain(`Imported 2 countries into ${databasePath}`);
+      expect(updateOutput).toContain(`Imported 1 country into ${databasePath}`);
+      expect(
+        database
+          .prepare('SELECT iso_3166_1, name FROM countries ORDER BY iso_3166_1')
+          .all(),
+      ).toEqual([
+        { iso_3166_1: 'FR', name: 'Updated France' },
+        { iso_3166_1: 'US', name: 'United States' },
+      ]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('validates the CSV before creating the database', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'invalid.csv');
+    const databasePath = join(temporaryDirectory, 'not-created.sqlite');
+    writeFileSync(csvPath, 'code,name\nfr,France\n');
+
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        [cliPath, '--path', databasePath, 'add-countries', csvPath],
+        { encoding: 'utf8' },
+      ),
+    ).toThrow();
+    expect(existsSync(databasePath)).toBe(false);
+  });
+
+  it('reports the number of removed countries and preserves countries used by movies', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+    initializeDatabase(databasePath);
+    const database = new DatabaseSync(databasePath);
+
+    try {
+      database
+        .prepare(
+          "INSERT INTO countries (iso_3166_1, name) VALUES ('FR', 'France'), ('BE', 'Belgium')",
+        )
+        .run();
+      database
+        .prepare(
+          `INSERT INTO movies (
+            tmdb_id, title, original_title, first_imported_at, observed_at
+          ) VALUES (1, 'Film', 'Film', 'now', 'now')`,
+        )
+        .run();
+      database
+        .prepare(
+          'INSERT INTO movie_production_countries (movie_id, country_code) VALUES (1, ?)',
+        )
+        .run('FR');
+    } finally {
+      database.close();
+    }
+
+    const output = execFileSync(
+      process.execPath,
+      [cliPath, '--path', databasePath, 'clean-countries'],
+      { encoding: 'utf8' },
+    );
+    const resultDatabase = new DatabaseSync(databasePath);
+
+    try {
+      expect(output).toContain(`Removed 1 unused country from ${databasePath}`);
+      expect(
+        resultDatabase.prepare('SELECT iso_3166_1 FROM countries').all(),
+      ).toEqual([{ iso_3166_1: 'FR' }]);
+    } finally {
+      resultDatabase.close();
+    }
+  });
+
+  it('rolls back the import and closes the database when an upsert fails', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'countries.csv');
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+    initializeDatabase(databasePath);
+    const database = new DatabaseSync(databasePath);
+
+    try {
+      database
+        .prepare(
+          "CREATE TRIGGER reject_us BEFORE INSERT ON countries WHEN NEW.iso_3166_1 = 'US' BEGIN SELECT RAISE(ABORT, 'rejected country'); END",
+        )
+        .run();
+    } finally {
+      database.close();
+    }
+    writeFileSync(csvPath, 'code,name\nFR,France\nUS,United States\n');
+
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        [cliPath, '--path', databasePath, 'add-countries', csvPath],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+      ),
+    ).toThrow();
+
+    const resultDatabase = new DatabaseSync(databasePath);
+    try {
+      expect(
+        resultDatabase.prepare('SELECT iso_3166_1 FROM countries').all(),
+      ).toEqual([]);
+    } finally {
+      resultDatabase.close();
+    }
   });
 });
