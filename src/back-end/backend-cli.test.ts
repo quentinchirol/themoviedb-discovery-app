@@ -75,6 +75,18 @@ describe('backend CLI', () => {
     }
   });
 
+  it('does not parse CLI arguments when imported without an entry-point path', async () => {
+    const originalArgv = process.argv;
+    process.argv = [process.execPath];
+    vi.resetModules();
+
+    try {
+      await import('./backend-cli.ts');
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
   it('creates the initialized database at the default path', () => {
     temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
 
@@ -338,6 +350,24 @@ describe('backend CLI', () => {
         `Imported 1 country into ${databasePath}`,
       );
 
+      const database = new DatabaseSync(databasePath);
+      try {
+        database
+          .prepare(
+            `INSERT INTO movies (
+              tmdb_id, title, original_title, first_imported_at, observed_at
+            ) VALUES (1, 'Film', 'Film', 'now', 'now')`,
+          )
+          .run();
+        database
+          .prepare(
+            'INSERT INTO movie_production_countries (movie_id, country_code) VALUES (1, ?)',
+          )
+          .run('FR');
+      } finally {
+        database.close();
+      }
+
       process.argv = [
         process.execPath,
         cliPath,
@@ -348,7 +378,7 @@ describe('backend CLI', () => {
       vi.resetModules();
       await import('./backend-cli.ts');
       expect(log).toHaveBeenLastCalledWith(
-        `Removed 2 unused countries from ${databasePath}`,
+        `Removed 1 unused country from ${databasePath}`,
       );
 
       process.argv = [
