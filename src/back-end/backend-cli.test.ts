@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { initializeDatabase } from './backend-cli.ts';
+import {
+  importCountries,
+  initializeDatabase,
+  removeUnusedCountries,
+} from './backend-cli.ts';
 
 const cliPath = fileURLToPath(new URL('./backend-cli.ts', import.meta.url));
 let temporaryDirectory = '';
@@ -147,7 +151,7 @@ describe('backend CLI', () => {
       execFileSync(
         process.execPath,
         [cliPath, '--path', databasePath, 'add-countries', csvPath],
-        { encoding: 'utf8' },
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
       ),
     ).toThrow();
     expect(existsSync(databasePath)).toBe(false);
@@ -231,6 +235,137 @@ describe('backend CLI', () => {
       ).toEqual([]);
     } finally {
       resultDatabase.close();
+    }
+  });
+
+  it('imports countries through the module function and closes the database after a failed import', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'countries.csv');
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+    initializeDatabase(databasePath);
+    writeFileSync(csvPath, 'code,name\nFR,France\nUS,United States\n');
+
+    expect(importCountries(csvPath, databasePath)).toEqual({
+      databasePath,
+      countryCount: 2,
+    });
+
+    const database = new DatabaseSync(databasePath);
+    try {
+      database
+        .prepare(
+          "CREATE TRIGGER reject_gb BEFORE INSERT ON countries WHEN NEW.iso_3166_1 = 'GB' BEGIN SELECT RAISE(ABORT, 'rejected country'); END",
+        )
+        .run();
+    } finally {
+      database.close();
+    }
+
+    writeFileSync(csvPath, 'code,name\nGB,United Kingdom\n');
+    expect(() => importCountries(csvPath, databasePath)).toThrow(
+      'rejected country',
+    );
+
+    const resultDatabase = new DatabaseSync(databasePath);
+    try {
+      expect(
+        resultDatabase
+          .prepare('SELECT iso_3166_1 FROM countries ORDER BY iso_3166_1')
+          .all(),
+      ).toEqual([{ iso_3166_1: 'FR' }, { iso_3166_1: 'US' }]);
+    } finally {
+      resultDatabase.close();
+    }
+  });
+
+  it('removes unused countries through the module function', () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+    initializeDatabase(databasePath);
+    const database = new DatabaseSync(databasePath);
+
+    try {
+      database
+        .prepare(
+          "INSERT INTO countries (iso_3166_1, name) VALUES ('FR', 'France')",
+        )
+        .run();
+    } finally {
+      database.close();
+    }
+
+    expect(removeUnusedCountries(databasePath)).toEqual({
+      databasePath,
+      countryCount: 1,
+    });
+  });
+
+  it('runs the country subcommands as CLI entry points and reports singular and plural counts', async () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'countries.csv');
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+    const originalArgv = process.argv;
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      writeFileSync(csvPath, 'code,name\nFR,France\nBE,Belgium\n');
+      process.argv = [
+        process.execPath,
+        cliPath,
+        '--path',
+        databasePath,
+        'add-countries',
+        csvPath,
+      ];
+      vi.resetModules();
+      await import('./backend-cli.ts');
+      expect(log).toHaveBeenLastCalledWith(
+        `Imported 2 countries into ${databasePath}`,
+      );
+
+      writeFileSync(csvPath, 'code,name\nFR,France\n');
+      process.argv = [
+        process.execPath,
+        cliPath,
+        '--path',
+        databasePath,
+        'add-countries',
+        csvPath,
+      ];
+      vi.resetModules();
+      await import('./backend-cli.ts');
+      expect(log).toHaveBeenLastCalledWith(
+        `Imported 1 country into ${databasePath}`,
+      );
+
+      process.argv = [
+        process.execPath,
+        cliPath,
+        '--path',
+        databasePath,
+        'clean-countries',
+      ];
+      vi.resetModules();
+      await import('./backend-cli.ts');
+      expect(log).toHaveBeenLastCalledWith(
+        `Removed 2 unused countries from ${databasePath}`,
+      );
+
+      process.argv = [
+        process.execPath,
+        cliPath,
+        '--path',
+        databasePath,
+        'clean-countries',
+      ];
+      vi.resetModules();
+      await import('./backend-cli.ts');
+      expect(log).toHaveBeenLastCalledWith(
+        `Removed 0 unused countries from ${databasePath}`,
+      );
+    } finally {
+      process.argv = originalArgv;
+      log.mockRestore();
     }
   });
 });

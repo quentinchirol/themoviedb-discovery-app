@@ -16,6 +16,7 @@ describe('parseCountriesCsv', () => {
       parseCountriesCsv(`code,name
  FR ,"Cote ""d'Ivoire"""
 
+,
   
 `),
     ).toEqual([{ code: 'FR', name: 'Cote "d\'Ivoire"' }]);
