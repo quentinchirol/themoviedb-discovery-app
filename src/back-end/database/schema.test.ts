@@ -174,6 +174,27 @@ describe('SQLite movie dashboard schema', () => {
     }
   });
 
+  it('stores raw CSV movie payloads for genres and production countries', () => {
+    const database = createTestDatabase();
+    try {
+      upsertMovie(database, movie, '2024-01-01T00:00:00.000Z');
+
+      expect(
+        database
+          .prepare(
+            'SELECT genres, production_countries FROM movies WHERE tmdb_id = 101',
+          )
+          .get(),
+      ).toEqual({
+        genres: '[18,12]',
+        production_countries:
+          '[{"iso_3166_1":"FR","name":"France"},{"iso_3166_1":"BE","name":"Belgique"}]',
+      });
+    } finally {
+      database.close();
+    }
+  });
+
   it('migrates an existing database while preserving its movies and relationships', () => {
     const database = new DatabaseSync(':memory:');
     try {

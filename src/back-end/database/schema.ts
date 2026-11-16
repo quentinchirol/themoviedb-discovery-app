@@ -45,6 +45,8 @@ function moviesTableSql(tableName: string): string {
     runtime INTEGER CHECK (runtime IS NULL OR runtime > 0),
     budget INTEGER CHECK (budget IS NULL OR budget > 0),
     revenue INTEGER CHECK (revenue IS NULL OR revenue > 0),
+    genres TEXT,
+    production_countries TEXT,
     first_imported_at TEXT NOT NULL,
     observed_at TEXT NOT NULL
   )`;
@@ -99,21 +101,25 @@ export function createDatabaseSchema(database: DatabaseSync): void {
         const hasReleaseYear = columns.some(
           (column) => column.name === 'release_year',
         );
+        const hasGenres = columns.some((column) => column.name === 'genres');
+        const hasProductionCountries = columns.some(
+          (column) => column.name === 'production_countries',
+        );
 
-        if (!hasReleaseYear) {
+        if (!hasReleaseYear || !hasGenres || !hasProductionCountries) {
           database.exec(moviesTableSql('movies__migration'));
           database.exec(`
             INSERT INTO movies__migration (
               tmdb_id, title, original_title, release_date, overview,
               original_language, poster_path, backdrop_path, popularity,
               vote_average, vote_count, runtime, budget, revenue,
-              first_imported_at, observed_at
+              genres, production_countries, first_imported_at, observed_at
             )
             SELECT
               tmdb_id, title, original_title, release_date, overview,
               original_language, poster_path, backdrop_path, popularity,
               vote_average, vote_count, runtime, budget, revenue,
-              first_imported_at, observed_at
+              NULL, NULL, first_imported_at, observed_at
             FROM movies;
             DROP TABLE movies;
             ALTER TABLE movies__migration RENAME TO movies;
@@ -161,12 +167,12 @@ export function upsertMovie(
           tmdb_id, title, original_title, release_date, overview,
           original_language, poster_path, backdrop_path, popularity,
           vote_average, vote_count, runtime, budget, revenue,
-          first_imported_at, observed_at
+          genres, production_countries, first_imported_at, observed_at
         ) VALUES (
           $id, $title, $originalTitle, $releaseDate, $overview,
           $originalLanguage, $posterPath, $backdropPath, $popularity,
           $voteAverage, $voteCount, $runtime, $budget, $revenue,
-          $observedAt, $observedAt
+          $genres, $productionCountries, $observedAt, $observedAt
         )
         ON CONFLICT(tmdb_id) DO UPDATE SET
           title = excluded.title,
@@ -182,6 +188,8 @@ export function upsertMovie(
           runtime = excluded.runtime,
           budget = excluded.budget,
           revenue = excluded.revenue,
+          genres = excluded.genres,
+          production_countries = excluded.production_countries,
           observed_at = excluded.observed_at`,
       )
       .run({
@@ -199,6 +207,13 @@ export function upsertMovie(
         $runtime: movie.runtime,
         $budget: movie.budget,
         $revenue: movie.revenue,
+        $genres: JSON.stringify(movie.genres.map((genre) => genre.id)),
+        $productionCountries: JSON.stringify(
+          movie.productionCountries.map((country) => ({
+            iso_3166_1: country.code,
+            name: country.name,
+          })),
+        ),
         $observedAt: observedAt,
       });
 
