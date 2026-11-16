@@ -268,6 +268,7 @@ describe('movies API', () => {
       vi.stubGlobal('fetch', fetchMock);
       const invalidResponse = createResponse();
       const missingResponse = createResponse();
+      const outOfRangeResponse = createResponse();
 
       await getHandler('/api/discover/movies')(
         { query: { year: 'abcd' } } as unknown as Request,
@@ -277,6 +278,11 @@ describe('movies API', () => {
       await getHandler('/api/discover/movies')(
         { query: {} } as unknown as Request,
         missingResponse,
+        vi.fn(),
+      );
+      await getHandler('/api/discover/movies')(
+        { query: { year: '0999' } } as unknown as Request,
+        outOfRangeResponse,
         vi.fn(),
       );
 
@@ -290,6 +296,88 @@ describe('movies API', () => {
       expect(missingResponse.json).toHaveBeenCalledWith({
         error:
           'Year is required and must be a 4-digit number between 1000 and 9999.',
+      });
+      expect(outOfRangeResponse.status).toHaveBeenCalledWith(400);
+      expect(outOfRangeResponse.json).toHaveBeenCalledWith({
+        error:
+          'Year is required and must be a 4-digit number between 1000 and 9999.',
+      });
+    });
+
+    it('accepts a year supplied as an array item and calls TMDB with it', async () => {
+      const rawData = {
+        page: 1,
+        results: [{ id: 9 }],
+        total_pages: 1,
+        total_results: 1,
+      } as unknown as TmdbMoviesRawResponse;
+      const fetchMock = vi.fn().mockResolvedValueOnce(tmdbResponse(rawData));
+      vi.stubGlobal('fetch', fetchMock);
+      const response = createResponse();
+      const supportedMovie = { id: 9, title: 'Array Year Movie' };
+      toSupportedMovieMock.mockReturnValue(supportedMovie);
+
+      await getHandler('/api/discover/movies')(
+        { query: { year: ['2021'] } } as unknown as Request,
+        response,
+        vi.fn(),
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `https://api.themoviedb.org/3/discover/movie?primary_release_year=2021&language=${DEFAULT_LANGUAGE}&page=${DEFAULT_PAGE}&region=${DEFAULT_REGION}`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${tmdbAccessToken}`,
+          }),
+        }),
+      );
+      expect(response.json).toHaveBeenCalledWith({
+        page: 1,
+        results: [supportedMovie],
+        total_pages: 1,
+        total_results: 1,
+      });
+    });
+
+    it('falls back to defaults when optional query params are blank or non-string values', async () => {
+      const rawData = {
+        page: 1,
+        results: [{ id: 7 }],
+        total_pages: 1,
+        total_results: 1,
+      } as unknown as TmdbMoviesRawResponse;
+      const fetchMock = vi.fn().mockResolvedValueOnce(tmdbResponse(rawData));
+      vi.stubGlobal('fetch', fetchMock);
+      const response = createResponse();
+      const supportedMovie = { id: 7, title: 'Fallback Movie' };
+      toSupportedMovieMock.mockReturnValue(supportedMovie);
+
+      await getHandler('/api/discover/movies')(
+        {
+          query: {
+            year: '2024',
+            language: 42,
+            page: ['   '],
+            region: ['    '],
+          },
+        } as unknown as Request,
+        response,
+        vi.fn(),
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `https://api.themoviedb.org/3/discover/movie?primary_release_year=2024&language=${DEFAULT_LANGUAGE}&page=${DEFAULT_PAGE}&region=${DEFAULT_REGION}`,
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${tmdbAccessToken}`,
+          }),
+        }),
+      );
+      expect(response.json).toHaveBeenCalledWith({
+        page: 1,
+        results: [supportedMovie],
+        total_pages: 1,
+        total_results: 1,
       });
     });
 
