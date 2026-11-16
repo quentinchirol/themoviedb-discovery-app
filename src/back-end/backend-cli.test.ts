@@ -142,11 +142,13 @@ describe('backend CLI', () => {
       expect(updateOutput).toContain(`Imported 1 country into ${databasePath}`);
       expect(
         database
-          .prepare('SELECT iso_3166_1, name FROM countries ORDER BY iso_3166_1')
+          .prepare(
+            'SELECT countries_id, name FROM countries ORDER BY countries_id',
+          )
           .all(),
       ).toEqual([
-        { iso_3166_1: 'FR', name: 'Updated France' },
-        { iso_3166_1: 'US', name: 'United States' },
+        { countries_id: 'FR', name: 'Updated France' },
+        { countries_id: 'US', name: 'United States' },
       ]);
     } finally {
       database.close();
@@ -178,7 +180,7 @@ describe('backend CLI', () => {
     try {
       database
         .prepare(
-          "INSERT INTO countries (iso_3166_1, name) VALUES ('FR', 'France'), ('BE', 'Belgium')",
+          "INSERT INTO countries (countries_id, name) VALUES ('FR', 'France'), ('BE', 'Belgium')",
         )
         .run();
       database
@@ -207,8 +209,8 @@ describe('backend CLI', () => {
     try {
       expect(output).toContain(`Removed 1 unused country from ${databasePath}`);
       expect(
-        resultDatabase.prepare('SELECT iso_3166_1 FROM countries').all(),
-      ).toEqual([{ iso_3166_1: 'FR' }]);
+        resultDatabase.prepare('SELECT countries_id FROM countries').all(),
+      ).toEqual([{ countries_id: 'FR' }]);
     } finally {
       resultDatabase.close();
     }
@@ -224,7 +226,7 @@ describe('backend CLI', () => {
     try {
       database
         .prepare(
-          "CREATE TRIGGER reject_us BEFORE INSERT ON countries WHEN NEW.iso_3166_1 = 'US' BEGIN SELECT RAISE(ABORT, 'rejected country'); END",
+          "CREATE TRIGGER reject_us BEFORE INSERT ON countries WHEN NEW.countries_id = 'US' BEGIN SELECT RAISE(ABORT, 'rejected country'); END",
         )
         .run();
     } finally {
@@ -243,7 +245,7 @@ describe('backend CLI', () => {
     const resultDatabase = new DatabaseSync(databasePath);
     try {
       expect(
-        resultDatabase.prepare('SELECT iso_3166_1 FROM countries').all(),
+        resultDatabase.prepare('SELECT countries_id FROM countries').all(),
       ).toEqual([]);
     } finally {
       resultDatabase.close();
@@ -266,7 +268,7 @@ describe('backend CLI', () => {
     try {
       database
         .prepare(
-          "CREATE TRIGGER reject_gb BEFORE INSERT ON countries WHEN NEW.iso_3166_1 = 'GB' BEGIN SELECT RAISE(ABORT, 'rejected country'); END",
+          "CREATE TRIGGER reject_gb BEFORE INSERT ON countries WHEN NEW.countries_id = 'GB' BEGIN SELECT RAISE(ABORT, 'rejected country'); END",
         )
         .run();
     } finally {
@@ -282,9 +284,9 @@ describe('backend CLI', () => {
     try {
       expect(
         resultDatabase
-          .prepare('SELECT iso_3166_1 FROM countries ORDER BY iso_3166_1')
+          .prepare('SELECT countries_id FROM countries ORDER BY countries_id')
           .all(),
-      ).toEqual([{ iso_3166_1: 'FR' }, { iso_3166_1: 'US' }]);
+      ).toEqual([{ countries_id: 'FR' }, { countries_id: 'US' }]);
     } finally {
       resultDatabase.close();
     }
@@ -299,7 +301,7 @@ describe('backend CLI', () => {
     try {
       database
         .prepare(
-          "INSERT INTO countries (iso_3166_1, name) VALUES ('FR', 'France')",
+          "INSERT INTO countries (countries_id, name) VALUES ('FR', 'France')",
         )
         .run();
     } finally {

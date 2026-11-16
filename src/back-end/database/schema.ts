@@ -57,7 +57,7 @@ export const databaseSchema = `
   );
 
   CREATE TABLE IF NOT EXISTS countries (
-    iso_3166_1 TEXT PRIMARY KEY CHECK (length(iso_3166_1) = 2),
+    countries_id TEXT PRIMARY KEY CHECK (length(countries_id) = 2),
     name TEXT NOT NULL
   );
 
@@ -69,7 +69,7 @@ export const databaseSchema = `
 
   CREATE TABLE IF NOT EXISTS movie_production_countries (
     movie_id INTEGER NOT NULL REFERENCES movies(tmdb_id) ON DELETE CASCADE,
-    country_code TEXT NOT NULL REFERENCES countries(iso_3166_1) ON DELETE RESTRICT,
+    country_code TEXT NOT NULL REFERENCES countries(countries_id) ON DELETE RESTRICT,
     PRIMARY KEY (movie_id, country_code)
   );
 
@@ -218,8 +218,8 @@ export function upsertMovie(
     }
 
     const insertCountry = database.prepare(
-      `INSERT INTO countries (iso_3166_1, name) VALUES ($code, $name)
-       ON CONFLICT(iso_3166_1) DO UPDATE SET name = excluded.name`,
+      `INSERT INTO countries (countries_id, name) VALUES ($code, $name)
+       ON CONFLICT(countries_id) DO UPDATE SET name = excluded.name`,
     );
     const insertMovieCountry = database.prepare(
       `INSERT INTO movie_production_countries (movie_id, country_code)

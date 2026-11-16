@@ -13,11 +13,11 @@ function toCountry(
 }
 
 function toCountryRow(row: Record<string, unknown>): Country {
-  if (typeof row.iso_3166_1 !== 'string' || typeof row.name !== 'string') {
+  if (typeof row.countries_id !== 'string' || typeof row.name !== 'string') {
     throw new Error('Invalid country row returned by SQLite');
   }
 
-  return { code: row.iso_3166_1, name: row.name };
+  return { code: row.countries_id, name: row.name };
 }
 
 export function findCountryByCode(
@@ -25,7 +25,7 @@ export function findCountryByCode(
   code: string,
 ): Country | undefined {
   const row = database
-    .prepare('SELECT iso_3166_1, name FROM countries WHERE iso_3166_1 = ?')
+    .prepare('SELECT countries_id, name FROM countries WHERE countries_id = ?')
     .get(code);
 
   return toCountry(row);
@@ -33,7 +33,9 @@ export function findCountryByCode(
 
 export function listCountries(database: DatabaseSync): Country[] {
   return database
-    .prepare('SELECT iso_3166_1, name FROM countries ORDER BY iso_3166_1 ASC')
+    .prepare(
+      'SELECT countries_id, name FROM countries ORDER BY countries_id ASC',
+    )
     .all()
     .map(toCountryRow);
 }
@@ -49,8 +51,8 @@ export function upsertCountries(
   database.exec('BEGIN IMMEDIATE');
   try {
     const upsert = database.prepare(
-      `INSERT INTO countries (iso_3166_1, name) VALUES ($code, $name)
-       ON CONFLICT(iso_3166_1) DO UPDATE SET name = excluded.name`,
+      `INSERT INTO countries (countries_id, name) VALUES ($code, $name)
+       ON CONFLICT(countries_id) DO UPDATE SET name = excluded.name`,
     );
 
     for (const country of uniqueCountries.values()) {
@@ -71,7 +73,7 @@ export function cleanUnusedCountries(database: DatabaseSync): number {
        WHERE NOT EXISTS (
          SELECT 1
          FROM movie_production_countries
-         WHERE movie_production_countries.country_code = countries.iso_3166_1
+         WHERE movie_production_countries.country_code = countries.countries_id
        )`,
     )
     .run();

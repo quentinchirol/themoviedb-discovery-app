@@ -26,7 +26,7 @@ describe('country repository', () => {
     const db = new DatabaseSync(':memory:');
     try {
       db.exec(`
-        CREATE TABLE countries (iso_3166_1, name);
+        CREATE TABLE countries (countries_id, name);
         INSERT INTO countries VALUES (123, 'Invalid code');
       `);
 

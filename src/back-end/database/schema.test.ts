@@ -199,7 +199,7 @@ describe('SQLite movie dashboard schema', () => {
         );
         CREATE TABLE genres (tmdb_id INTEGER PRIMARY KEY, name TEXT NOT NULL);
         CREATE TABLE countries (
-          iso_3166_1 TEXT PRIMARY KEY,
+          countries_id TEXT PRIMARY KEY,
           name TEXT NOT NULL
         );
         CREATE TABLE movie_genres (
@@ -209,7 +209,7 @@ describe('SQLite movie dashboard schema', () => {
         );
         CREATE TABLE movie_production_countries (
           movie_id INTEGER NOT NULL REFERENCES movies(tmdb_id) ON DELETE CASCADE,
-          country_code TEXT NOT NULL REFERENCES countries(iso_3166_1) ON DELETE RESTRICT,
+          country_code TEXT NOT NULL REFERENCES countries(countries_id) ON DELETE RESTRICT,
           PRIMARY KEY (movie_id, country_code)
         );
         INSERT INTO movies (
