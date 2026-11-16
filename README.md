@@ -46,7 +46,7 @@ Le serveur Express écoute sur le port `3000`. Vite sert l'interface sur le port
 
 ## Base de données SQLite
 
-Initialisez une base SQLite vide avec son chemin par défaut (`data/database.sqlite`) :
+Initialisez le schéma SQLite avec son chemin par défaut (`data/database.sqlite`) :
 
 ```sh
 node src/back-end/backend-cli.ts
@@ -58,7 +58,29 @@ Pour choisir un autre fichier SQLite :
 node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite
 ```
 
-La commande crée les dossiers manquants et le fichier SQLite sans créer de table applicative. Le test `src/back-end/database/schema.test.ts` vérifie que SQLite peut ouvrir la base et exécuter une requête.
+La commande crée les dossiers manquants, le fichier SQLite et les tables applicatives. Pour choisir une autre base :
+
+```sh
+node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite
+```
+
+### Importer et nettoyer les genres
+
+Le fichier CSV doit avoir exactement les colonnes `id` et `name` (la casse et leur ordre sont libres). Les genres sont insérés ou actualisés par identifiant ; l’import complet est transactionnel :
+
+```sh
+node src/back-end/backend-cli.ts add-genres ./data/genres.csv
+node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite add-genres ./data/genres.csv
+```
+
+Le dépôt contient un exemple dans [`data/genres.csv`](./data/genres.csv). Pour supprimer seulement les genres qui ne sont associés à aucun film :
+
+```sh
+node src/back-end/backend-cli.ts clean-genres
+node src/back-end/backend-cli.ts --path ./data/custom-movies.sqlite clean-genres
+```
+
+Les commandes affichent le nombre de genres importés ou supprimés et le chemin de la base utilisée. Les genres liés à un film sont conservés.
 
 ## API locale
 
