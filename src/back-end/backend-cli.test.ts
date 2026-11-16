@@ -1,11 +1,18 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  importMovies,
   importCountries,
   initializeDatabase,
   removeUnusedCountries,
@@ -152,6 +159,109 @@ describe('backend CLI', () => {
       ]);
     } finally {
       database.close();
+    }
+  });
+
+  it('synchronizes Discover movies into the selected CSV and SQLite database', async () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'output', 'movies.csv');
+    const databasePath = join(temporaryDirectory, 'custom', 'movies.sqlite');
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ results: [{ id: 42 }], total_pages: 1 })),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 42,
+            title: 'Movie',
+            original_title: 'Movie',
+            genres: [{ id: 18, name: 'Drama' }],
+            production_countries: [{ iso_3166_1: 'FR', name: 'France' }],
+          }),
+        ),
+      );
+
+    await expect(
+      importMovies('2024', databasePath, csvPath, 1, 'test-token', fetcher),
+    ).resolves.toEqual({
+      databasePath,
+      csvPath,
+      movieCount: 1,
+    });
+
+    const database = new DatabaseSync(databasePath);
+    try {
+      expect(
+        database.prepare('SELECT tmdb_id, title FROM movies').all(),
+      ).toEqual([{ tmdb_id: 42, title: 'Movie' }]);
+      expect(readFileSync(csvPath, 'utf8')).toContain('42,Movie,Movie');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('runs the sync-movies CLI command with the configured TMDB token', async () => {
+    temporaryDirectory = mkdtempSync(join(tmpdir(), 'backend-cli-'));
+    const csvPath = join(temporaryDirectory, 'movies.csv');
+    const databasePath = join(temporaryDirectory, 'movies.sqlite');
+    const originalArgv = process.argv;
+    process.argv = [
+      process.execPath,
+      cliPath,
+      '--path',
+      databasePath,
+      'sync-movies',
+      '2024',
+      '--csv',
+      csvPath,
+      '--pages',
+      '1',
+    ];
+    vi.resetModules();
+    vi.doMock('./utils/config.ts', () => ({ tmdbAccessToken: 'test-token' }));
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ results: [{ id: 42 }], total_pages: 1 }),
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              id: 42,
+              title: 'Movie',
+              original_title: 'Movie',
+              genres: [],
+              production_countries: [],
+            }),
+          ),
+        ),
+    );
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await import('./backend-cli.ts');
+      expect(log).toHaveBeenCalledWith(
+        `Synchronized 1 movies into ${csvPath} and ${databasePath}`,
+      );
+      const database = new DatabaseSync(databasePath);
+      try {
+        expect(database.prepare('SELECT tmdb_id FROM movies').all()).toEqual([
+          { tmdb_id: 42 },
+        ]);
+      } finally {
+        database.close();
+      }
+    } finally {
+      process.argv = originalArgv;
+      log.mockRestore();
+      vi.unstubAllGlobals();
+      vi.doUnmock('./utils/config.ts');
     }
   });
 

@@ -7,6 +7,7 @@ import {
   cleanUnusedCountries,
   upsertCountries,
 } from './database/country-repository.ts';
+import { syncMoviesFromDiscover } from './database/movie.ts';
 import { openMoviesDatabase } from './database/schema.ts';
 
 const defaultDatabasePath = 'data/database.sqlite';
@@ -52,6 +53,33 @@ export function removeUnusedCountries(path: string): {
   }
 }
 
+export async function importMovies(
+  year: string,
+  databaseFile: string,
+  csvFile: string,
+  maxPages: number,
+  accessToken: string,
+  fetcher: typeof fetch = fetch,
+): Promise<{ databasePath: string; csvPath: string; movieCount: number }> {
+  const databasePath = resolve(databaseFile);
+  const csvPath = resolve(csvFile);
+  const database = openMoviesDatabase(databasePath);
+
+  try {
+    const movieCount = await syncMoviesFromDiscover({
+      database,
+      year,
+      accessToken,
+      csvPath,
+      maxPages,
+      fetcher,
+    });
+    return { databasePath, csvPath, movieCount };
+  } finally {
+    database.close();
+  }
+}
+
 const program = new Command();
 
 program
@@ -87,9 +115,32 @@ program
     );
   });
 
+program
+  .command('sync-movies')
+  .description(
+    'Fetch movies from TMDB Discover and update the CSV and SQLite database.',
+  )
+  .argument('<year>', 'release year to discover')
+  .option('--csv <path>', 'CSV output path', 'data/movies.csv')
+  .option('--pages <count>', 'maximum Discover pages to fetch', '1')
+  .action(async (year: string, options: { csv: string; pages: string }) => {
+    const { path = defaultDatabasePath } = program.opts<{ path?: string }>();
+    const { tmdbAccessToken } = await import('./utils/config.ts');
+    const result = await importMovies(
+      year,
+      path,
+      options.csv,
+      Number(options.pages),
+      tmdbAccessToken!,
+    );
+    console.log(
+      `Synchronized ${result.movieCount} movies into ${result.csvPath} and ${result.databasePath}`,
+    );
+  });
+
 if (
   process.argv[1] &&
   pathToFileURL(resolve(process.argv[1])).href === import.meta.url
 ) {
-  program.parse(process.argv);
+  await program.parseAsync(process.argv);
 }
